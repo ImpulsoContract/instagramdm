@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>InstaReply - Dashboard de Auto-DM</title>
+  <!-- Google Fonts: Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="glass-bg"></div>
+  
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header animate-fade-in">
+      <div class="logo-area">
+        <div class="logo-icon">
+          <i class="fab fa-instagram"></i>
+        </div>
+        <div class="logo-text">
+          <h1>InstaReply</h1>
+          <span>Instagram Auto-DM Webhook</span>
+        </div>
+      </div>
+      <div class="status-badge" id="server-status">
+        <span class="pulse-dot"></span>
+        <span class="status-text">Servidor Activo</span>
+      </div>
+    </header>
+
+    <!-- Main Grid -->
+    <main class="dashboard-grid">
+      
+      <!-- Panel de Configuración -->
+      <section class="card config-card animate-slide-up" style="animation-delay: 0.1s;">
+        <div class="card-header">
+          <i class="fas fa-sliders-h header-icon"></i>
+          <h2>Configuración del Sistema</h2>
+        </div>
+        
+        <form id="config-form" class="card-body">
+          <div class="form-group">
+            <label for="pageId">
+              ID de la Página de Facebook
+              <span class="info-tooltip" title="ID de la página de FB conectada a tu cuenta de Instagram Business."><i class="fas fa-question-circle"></i></span>
+            </label>
+            <div class="input-wrapper">
+              <i class="fas fa-id-card input-icon"></i>
+              <input type="text" id="pageId" placeholder="Ej. 102938475647382" required autocomplete="off">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="accessToken">
+              Page Access Token (Meta)
+              <span class="info-tooltip" title="Token de acceso permanente generado en el portal Meta Developers."><i class="fas fa-question-circle"></i></span>
+            </label>
+            <div class="input-wrapper">
+              <i class="fas fa-key input-icon"></i>
+              <input type="password" id="accessToken" placeholder="Ingresa tu token de acceso (se ocultará al guardar)">
+              <button type="button" class="btn-toggle-password" id="toggle-token">
+                <i class="fas fa-eye"></i>
+              </button>
+            </div>
+            <p class="token-status" id="token-status-label">
+              <i class="fas fa-exclamation-circle text-orange"></i> Token no configurado
+            </p>
+          </div>
+
+          <div class="form-group">
+            <label for="verifyToken">
+              Webhook Verify Token (Meta)
+              <span class="info-tooltip" title="Clave secreta inventada por ti que colocarás en el portal de Meta al configurar el Webhook."><i class="fas fa-question-circle"></i></span>
+            </label>
+            <div class="input-wrapper">
+              <i class="fas fa-lock input-icon"></i>
+              <input type="text" id="verifyToken" placeholder="Ej. mi_clave_secreta_webhook" required>
+              <button type="button" class="btn-copy" id="copy-verify-token" title="Copiar Token">
+                <i class="fas fa-copy"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="triggerKeyword">
+              Palabra Clave Disparadora (Opcional)
+              <span class="info-tooltip" title="Si la especificas, el DM sólo se enviará si el comentario contiene esta palabra. Si la dejas vacía, responderá a todos los comentarios."><i class="fas fa-question-circle"></i></span>
+            </label>
+            <div class="input-wrapper">
+              <i class="fas fa-hashtag input-icon"></i>
+              <input type="text" id="triggerKeyword" placeholder="Ej. INFO (Dejar vacío para cualquier comentario)">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="replyMessage">
+              Mensaje de Respuesta Directa (DM)
+            </label>
+            <div class="textarea-wrapper">
+              <textarea id="replyMessage" rows="4" placeholder="Escribe el mensaje que se enviará automáticamente. Puedes usar {username} para personalizarlo..." required></textarea>
+              <div class="textarea-actions">
+                <button type="button" class="badge-btn" id="insert-username">+{username}</button>
+              </div>
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary" id="btn-save">
+            <span class="btn-text">Guardar Cambios</span>
+            <span class="spinner"><i class="fas fa-circle-notch fa-spin"></i></span>
+          </button>
+        </form>
+      </section>
+
+      <!-- Panel de Control y Simulación -->
+      <div class="right-column">
+        
+        <!-- Enlaces Webhook / Ngrok -->
+        <section class="card connection-card animate-slide-up" style="animation-delay: 0.2s;">
+          <div class="card-header">
+            <i class="fas fa-link header-icon"></i>
+            <h2>Enlace del Webhook</h2>
+          </div>
+          <div class="card-body">
+            <p class="description-text">Utiliza esta URL para configurar la suscripción de Webhook en el Panel de Desarrollador de Meta:</p>
+            <div class="webhook-url-box">
+              <span class="webhook-url" id="webhook-url-text">https://mi-tunel.ngrok-free.app/webhook</span>
+              <button class="btn-copy" id="copy-webhook-url" title="Copiar URL">
+                <i class="fas fa-copy"></i>
+              </button>
+            </div>
+            <div class="connection-status-panel">
+              <span class="info-badge"><i class="fas fa-info-circle"></i> Tip: Puedes crear un túnel local ejecutando <code>npx localtunnel --port 3000</code> en una consola independiente.</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- Simulador de Comentarios -->
+        <section class="card simulator-card animate-slide-up" style="animation-delay: 0.25s;">
+          <div class="card-header">
+            <i class="fas fa-vial header-icon"></i>
+            <h2>Simulador de Eventos</h2>
+          </div>
+          <form id="simulator-form" class="card-body">
+            <p class="description-text">Prueba el flujo enviando un comentario ficticio para verificar el comportamiento:</p>
+            <div class="form-row">
+              <div class="form-group flex-1">
+                <label for="sim-username">Usuario IG</label>
+                <div class="input-wrapper">
+                  <i class="fas fa-user input-icon"></i>
+                  <input type="text" id="sim-username" placeholder="juan_perez" required value="usuario_demo">
+                </div>
+              </div>
+              <div class="form-group flex-2">
+                <label for="sim-comment">Comentario</label>
+                <div class="input-wrapper">
+                  <i class="fas fa-comment input-icon"></i>
+                  <input type="text" id="sim-comment" placeholder="Quiero más información por favor!" required value="Hola, envíame la INFO por favor!">
+                </div>
+              </div>
+            </div>
+            <button type="submit" class="btn btn-secondary" id="btn-simulate">
+              <span class="btn-text"><i class="fas fa-play"></i> Probar Simulación</span>
+              <span class="spinner"><i class="fas fa-circle-notch fa-spin"></i></span>
+            </button>
+          </form>
+        </section>
+      </div>
+
+      <!-- Historial de Actividad (Full Width Bottom) -->
+      <section class="card logs-card animate-slide-up" style="animation-delay: 0.3s;">
+        <div class="card-header logs-header">
+          <div class="title-area">
+            <i class="fas fa-history header-icon"></i>
+            <h2>Historial de Actividad</h2>
+          </div>
+          <div class="filter-tabs">
+            <button class="filter-tab active" data-filter="all">Todos</button>
+            <button class="filter-tab" data-filter="success">Enviados</button>
+            <button class="filter-tab" data-filter="ignored">Ignorados</button>
+            <button class="filter-tab" data-filter="error">Errores</button>
+          </div>
+        </div>
+        <div class="card-body logs-container" id="logs-list">
+          <!-- Los logs se inyectarán aquí -->
+          <div class="empty-state">
+            <i class="fas fa-clipboard-list empty-icon"></i>
+            <p>No hay actividad registrada todavía. Configura el sistema y realiza una simulación.</p>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Guía de Configuración de Meta -->
+    <section class="card guide-card animate-slide-up" style="animation-delay: 0.35s;">
+      <div class="card-header">
+        <i class="fas fa-book-open header-icon"></i>
+        <h2>Guía Rápida de Configuración en Meta for Developers</h2>
+      </div>
+      <div class="card-body">
+        <ol class="step-list">
+          <li>
+            <h3>Crea tu App en Meta</h3>
+            <p>Ve a <a href="https://developers.facebook.com/" target="_blank">Meta for Developers</a>, crea una App de tipo <strong>Negocios</strong> u <strong>Otro (Acceso al API de Graph)</strong>.</p>
+          </li>
+          <li>
+            <h3>Añade "Instagram Graph API" y "Messenger"</h3>
+            <p>En el panel lateral de tu app, añade los productos **Instagram Graph API** y **Messenger**. Vincula tu Página de Facebook vinculada a tu cuenta de Instagram Business.</p>
+          </li>
+          <li>
+            <h3>Configura la Webhook</h3>
+            <p>En la sección Webhooks de tu App de Meta:
+              <br>• Elige <strong>Instagram</strong> en la barra superior.
+              <br>• Pulsa <strong>Configurar Webhook</strong> y pon la URL HTTPS de tu servidor (ej: <code>https://mi-tunel.ngrok-free.app/webhook</code>).
+              <br>• Escribe el mismo <strong>Verify Token</strong> que pusiste en este Dashboard.
+              <br>• Suscríbete al campo <strong>comments</strong>.
+            </p>
+          </li>
+          <li>
+            <h3>Genera el Token de Acceso</h3>
+            <p>En la configuración de Messenger o Instagram de la app en Meta, ve a la sección de generación de tokens, selecciona tu página vinculada y genera un **Page Access Token** de larga duración. Copia y pega ese token en el formulario de este Dashboard.</p>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <p>InstaReply Auto-DM Webhook Dashboard © 2026. Desarrollado de forma segura mediante la API Oficial de Meta.</p>
+    </footer>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>

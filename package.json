@@ -1,0 +1,25 @@
+{
+  "name": "instagram-auto-dm",
+  "version": "1.0.0",
+  "description": "Instagram Auto-DM Webhook Server & Admin Dashboard",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": [
+    "instagram",
+    "webhook",
+    "meta",
+    "graph-api",
+    "auto-dm"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^1.7.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2"
+  }
+}
