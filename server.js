@@ -111,12 +111,38 @@ if (!fs.existsSync(LOGS_FILE)) {
   fs.writeFileSync(LOGS_FILE, '[]', 'utf8');
 }
 
+// Contraseña de Administrador (leída desde variables de entorno)
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
+
+// Middleware para verificar la contraseña de administrador
+const checkAuth = (req, res, next) => {
+  if (!ADMIN_PASSWORD) {
+    return next(); // Si no está configurada, permitir paso (entorno de desarrollo local)
+  }
+  
+  const token = req.headers['authorization'];
+  if (token === ADMIN_PASSWORD) {
+    return next();
+  }
+  
+  res.status(401).json({ success: false, message: 'No autorizado. Contraseña incorrecta.' });
+};
+
 // ==========================================
 // 1. ENDPOINTS DE LA API DEL DASHBOARD
 // ==========================================
 
+// Comprobar estado de autenticación
+app.get('/api/auth-status', (req, res) => {
+  const token = req.headers['authorization'];
+  res.json({
+    required: !!ADMIN_PASSWORD,
+    valid: ADMIN_PASSWORD ? token === ADMIN_PASSWORD : true
+  });
+});
+
 // Obtener configuración actual
-app.get('/api/config', (req, res) => {
+app.get('/api/config', checkAuth, (req, res) => {
   res.json({
     pageId: currentConfig.pageId,
     verifyToken: currentConfig.verifyToken,
@@ -127,7 +153,7 @@ app.get('/api/config', (req, res) => {
 });
 
 // Guardar configuración
-app.post('/api/config', (req, res) => {
+app.post('/api/config', checkAuth, (req, res) => {
   const { pageId, accessToken, verifyToken, triggerKeyword, replyMessage } = req.body;
 
   // Actualizar sólo los campos suministrados, y mantener el token anterior si no se envía uno nuevo
@@ -148,12 +174,12 @@ app.post('/api/config', (req, res) => {
 });
 
 // Obtener logs de actividad
-app.get('/api/logs', (req, res) => {
+app.get('/api/logs', checkAuth, (req, res) => {
   res.json(readLogs());
 });
 
 // Endpoint simulador: Permite probar el webhook desde el Dashboard sin configurar Meta
-app.post('/api/simulate-comment', async (req, res) => {
+app.post('/api/simulate-comment', checkAuth, async (req, res) => {
   const { username, commentText, commentId } = req.body;
   const mockPayload = {
     object: 'instagram',

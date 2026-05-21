@@ -235,6 +235,30 @@
     </footer>
   </div>
 
+  <!-- Capa de autenticación de administrador -->
+  <div class="auth-overlay" id="auth-overlay">
+    <div class="card auth-card">
+      <div class="card-header">
+        <i class="fas fa-user-shield header-icon"></i>
+        <h2>Acceso Protegido</h2>
+      </div>
+      <form id="auth-form" class="card-body">
+        <p class="description-text">Este dashboard es de uso exclusivo de administración. Por favor ingresa la contraseña:</p>
+        <div class="form-group">
+          <label for="admin-password">Contraseña de Administrador</label>
+          <div class="input-wrapper">
+            <i class="fas fa-lock input-icon"></i>
+            <input type="password" id="admin-password" placeholder="Introduce la contraseña" required>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary" id="btn-auth">
+          <span class="btn-text">Verificar e Ingresar</span>
+          <span class="spinner"><i class="fas fa-circle-notch fa-spin"></i></span>
+        </button>
+      </form>
+    </div>
+  </div>
+
   <div class="toast" id="toast"></div>
 
   <script src="app.js"></script>

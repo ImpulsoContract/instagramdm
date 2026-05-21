@@ -26,8 +26,42 @@ document.addEventListener('DOMContentLoaded', () => {
   const filterTabs = document.querySelectorAll('.filter-tab');
   const toast = document.getElementById('toast');
 
+  const authOverlay = document.getElementById('auth-overlay');
+  const authForm = document.getElementById('auth-form');
+  const adminPasswordInput = document.getElementById('admin-password');
+  const btnAuth = document.getElementById('btn-auth');
+
   let currentLogs = [];
   let activeFilter = 'all';
+
+  // Wrapper de fetch para inyectar la cabecera de autenticación
+  async function authFetch(url, options = {}) {
+    options.headers = options.headers || {};
+    options.headers['Authorization'] = localStorage.getItem('adminPassword') || '';
+    
+    try {
+      const response = await fetch(url, options);
+      if (response.status === 401) {
+        showAuthModal();
+        throw new Error('Unauthorized');
+      }
+      return response;
+    } catch (err) {
+      if (err.message === 'Unauthorized') {
+        throw err;
+      }
+      console.error(`Error en fetch a ${url}:`, err);
+      throw err;
+    }
+  }
+
+  function showAuthModal() {
+    authOverlay.classList.add('show');
+  }
+
+  function hideAuthModal() {
+    authOverlay.classList.remove('show');
+  }
 
   // ==========================================
   // 1. DYNAMIC CONFIGURATION & DATA CHARGING
@@ -40,7 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Load config from backend
   async function loadConfig() {
     try {
-      const response = await fetch('/api/config');
+      const response = await authFetch('/api/config');
       const data = await response.json();
       
       pageIdInput.value = data.pageId || '';
@@ -77,7 +111,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const replyMessage = replyMessageTextarea.value;
     
     try {
-      const response = await fetch('/api/config', {
+      const response = await authFetch('/api/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -172,9 +206,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const commentText = simCommentInput.value;
     
     try {
-      const response = await fetch('/api/simulate-comment', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await authFetch('/api/simulate-comment', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, commentText })
       });
       
@@ -204,7 +238,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Load and render activity logs
   async function fetchLogs() {
     try {
-      const response = await fetch('/api/logs');
+      const response = await authFetch('/api/logs');
       currentLogs = await response.json();
       renderLogs();
     } catch (error) {
@@ -314,10 +348,65 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 3500);
   }
 
-  // Initialize Web Dashboard
-  loadConfig();
-  fetchLogs();
-  
-  // Poll logs every 2.5 seconds
-  setInterval(fetchLogs, 2500);
+  // Manejador de formulario de autenticación
+  authForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    btnAuth.classList.add('loading');
+    btnAuth.disabled = true;
+    
+    const password = adminPasswordInput.value;
+    
+    try {
+      const response = await fetch('/api/auth-status', {
+        headers: { 'Authorization': password }
+      });
+      const data = await response.json();
+      
+      if (data.valid) {
+        localStorage.setItem('adminPassword', password);
+        hideAuthModal();
+        showToast('Sesión iniciada con éxito', 'success');
+        await loadConfig();
+        await fetchLogs();
+        // Activar polling
+        setInterval(fetchLogs, 2500);
+      } else {
+        showToast('Contraseña incorrecta', 'error');
+        adminPasswordInput.value = '';
+        adminPasswordInput.focus();
+      }
+    } catch (error) {
+      console.error('Error durante autenticación:', error);
+      showToast('Error de conexión con el servidor', 'error');
+    } finally {
+      btnAuth.classList.remove('loading');
+      btnAuth.disabled = false;
+    }
+  });
+
+  // Comprobar autenticación al iniciar
+  async function checkServerAuth() {
+    const savedPassword = localStorage.getItem('adminPassword') || '';
+    try {
+      const response = await fetch('/api/auth-status', {
+        headers: { 'Authorization': savedPassword }
+      });
+      const data = await response.json();
+      
+      if (data.required && !data.valid) {
+        showAuthModal();
+      } else {
+        hideAuthModal();
+        await loadConfig();
+        await fetchLogs();
+        setInterval(fetchLogs, 2500);
+      }
+    } catch (error) {
+      console.error('Error comprobando estado de autenticación:', error);
+      showToast('Error de conexión con el servidor', 'error');
+    }
+  }
+
+  // Inicializar Web Dashboard comprobando auth
+  checkServerAuth();
 });
