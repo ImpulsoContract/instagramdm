@@ -139,6 +139,64 @@
           </div>
         </section>
 
+        <!-- Panel de Diagnóstico de Conexión -->
+        <section class="card diagnostics-card animate-slide-up" style="animation-delay: 0.22s;" id="diagnostics-card">
+          <div class="card-header">
+            <i class="fas fa-diagnoses header-icon"></i>
+            <h2>Estado de la Conexión</h2>
+          </div>
+          <div class="card-body">
+            <p class="description-text">Diagnóstico en tiempo real de tu configuración y vinculación con Meta:</p>
+            
+            <div class="diagnostic-list" id="diagnostic-results">
+              <div class="diagnostic-item pending" id="diag-pageId">
+                <div class="diag-icon"><i class="fas fa-circle-notch fa-spin"></i></div>
+                <div class="diag-content">
+                  <div class="diag-title">ID de Página de Facebook</div>
+                  <div class="diag-msg">No comprobado</div>
+                </div>
+              </div>
+              
+              <div class="diagnostic-item pending" id="diag-token">
+                <div class="diag-icon"><i class="fas fa-circle-notch fa-spin"></i></div>
+                <div class="diag-content">
+                  <div class="diag-title">Access Token de Meta</div>
+                  <div class="diag-msg">No comprobado</div>
+                </div>
+              </div>
+
+              <div class="diagnostic-item pending" id="diag-instagram">
+                <div class="diag-icon"><i class="fas fa-circle-notch fa-spin"></i></div>
+                <div class="diag-content">
+                  <div class="diag-title">Cuenta de Instagram Vinculada</div>
+                  <div class="diag-msg">No comprobado</div>
+                </div>
+              </div>
+
+              <div class="diagnostic-item pending" id="diag-verify">
+                <div class="diag-icon"><i class="fas fa-circle-notch fa-spin"></i></div>
+                <div class="diag-content">
+                  <div class="diag-title">Token de Verificación Webhook</div>
+                  <div class="diag-msg">No comprobado</div>
+                </div>
+              </div>
+
+              <div class="diagnostic-item pending" id="diag-security">
+                <div class="diag-icon"><i class="fas fa-circle-notch fa-spin"></i></div>
+                <div class="diag-content">
+                  <div class="diag-title">Contraseña de Administrador</div>
+                  <div class="diag-msg">No comprobado</div>
+                </div>
+              </div>
+            </div>
+            
+            <button type="button" class="btn btn-secondary" id="btn-test-connection" style="margin-top: 15px; width: 100%;">
+              <span class="btn-text"><i class="fas fa-sync-alt"></i> Probar Diagnóstico</span>
+              <span class="spinner"><i class="fas fa-circle-notch fa-spin"></i></span>
+            </button>
+          </div>
+        </section>
+
         <!-- Simulador de Comentarios -->
         <section class="card simulator-card animate-slide-up" style="animation-delay: 0.25s;">
           <div class="card-header">

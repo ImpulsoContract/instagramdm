@@ -31,7 +31,15 @@ document.addEventListener('DOMContentLoaded', () => {
   const adminPasswordInput = document.getElementById('admin-password');
   const btnAuth = document.getElementById('btn-auth');
 
+  const btnTestConnection = document.getElementById('btn-test-connection');
+  const diagPageId = document.getElementById('diag-pageId');
+  const diagToken = document.getElementById('diag-token');
+  const diagInstagram = document.getElementById('diag-instagram');
+  const diagVerify = document.getElementById('diag-verify');
+  const diagSecurity = document.getElementById('diag-security');
+
   let currentLogs = [];
+
   let activeFilter = 'all';
 
   // Wrapper de fetch para inyectar la cabecera de autenticación
@@ -230,6 +238,91 @@ document.addEventListener('DOMContentLoaded', () => {
       btnSimulate.disabled = false;
     }
   });
+
+  // ==========================================
+  // 3.5 CONNECTION DIAGNOSTICS HANDLER
+  // ==========================================
+  async function runDiagnostics() {
+    btnTestConnection.classList.add('loading');
+    btnTestConnection.disabled = true;
+
+    // Reset items to loading
+    const items = [
+      { el: diagPageId, title: 'ID de Página de Facebook' },
+      { el: diagToken, title: 'Access Token de Meta' },
+      { el: diagInstagram, title: 'Cuenta de Instagram Vinculada' },
+      { el: diagVerify, title: 'Token de Verificación Webhook' },
+      { el: diagSecurity, title: 'Contraseña de Administrador' }
+    ];
+
+    items.forEach(item => {
+      item.el.className = 'diagnostic-item loading';
+      item.el.querySelector('.diag-icon').innerHTML = '<i class="fas fa-circle-notch fa-spin"></i>';
+      item.el.querySelector('.diag-msg').textContent = 'Comprobando...';
+    });
+
+    try {
+      const response = await authFetch('/api/test-connection');
+      const data = await response.json();
+      
+      const diag = data.diagnostics || {};
+      
+      // Actualizar Page ID
+      updateDiagItem(diagPageId, diag.pageId || { status: 'error', message: 'No se obtuvo respuesta del ID de página.' });
+      
+      // Actualizar Token
+      updateDiagItem(diagToken, diag.accessToken || { status: 'error', message: 'No se obtuvo respuesta del token.' });
+      
+      // Actualizar Instagram
+      updateDiagItem(diagInstagram, diag.instagram || { status: 'error', message: 'No se pudo verificar la vinculación de Instagram.' });
+      
+      // Actualizar Verify Token
+      updateDiagItem(diagVerify, diag.verifyToken || { status: 'error', message: 'No se pudo verificar el verify token.' });
+      
+      // Actualizar Contraseña de Seguridad
+      updateDiagItem(diagSecurity, diag.security || { status: 'error', message: 'No se pudo verificar la contraseña.' });
+      
+      if (data.valid) {
+        showToast('Diagnóstico exitoso: Conectado a Instagram', 'success');
+      } else {
+        showToast(`Diagnóstico incompleto: ${data.reason || 'Revisa los detalles'}`, 'error');
+      }
+      
+      await fetchLogs(); // Actualizar logs para reflejar el reporte del test de conexión
+      
+    } catch (error) {
+      console.error('Error corriendo diagnóstico:', error);
+      showToast('Error al conectar con la API de diagnóstico', 'error');
+      items.forEach(item => {
+        item.el.className = 'diagnostic-item error';
+        item.el.querySelector('.diag-icon').innerHTML = '<i class="fas fa-times-circle"></i>';
+        item.el.querySelector('.diag-msg').textContent = 'Error al ejecutar comprobación en el servidor.';
+      });
+    } finally {
+      btnTestConnection.classList.remove('loading');
+      btnTestConnection.disabled = false;
+    }
+  }
+
+  function updateDiagItem(element, data) {
+    element.className = `diagnostic-item ${data.status}`;
+    const iconEl = element.querySelector('.diag-icon');
+    const msgEl = element.querySelector('.diag-msg');
+    
+    msgEl.textContent = data.message;
+    
+    if (data.status === 'success') {
+      iconEl.innerHTML = '<i class="fas fa-check-circle"></i>';
+    } else if (data.status === 'warning') {
+      iconEl.innerHTML = '<i class="fas fa-exclamation-triangle"></i>';
+    } else if (data.status === 'error') {
+      iconEl.innerHTML = '<i class="fas fa-times-circle"></i>';
+    } else {
+      iconEl.innerHTML = '<i class="fas fa-question-circle"></i>';
+    }
+  }
+
+  btnTestConnection.addEventListener('click', runDiagnostics);
 
   // ==========================================
   // 4. ACTIVITY LOGS HANDLERS

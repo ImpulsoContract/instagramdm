@@ -111,8 +111,75 @@ if (!fs.existsSync(LOGS_FILE)) {
   fs.writeFileSync(LOGS_FILE, '[]', 'utf8');
 }
 
+// Función para validar las variables de entorno en el arranque del servidor
+function validateEnvVariables() {
+  const warnings = [];
+  const errors = [];
+
+  console.log('\n=========================================================');
+  console.log(' Diagnosticando Variables de Entorno...');
+  console.log('=========================================================');
+
+  // 1. Validar PAGE_ID
+  const pageId = process.env.PAGE_ID || currentConfig.pageId;
+  if (!pageId) {
+    errors.push('Falta PAGE_ID: El identificador de la Página de Facebook no está configurado.');
+  } else if (!/^\d+$/.test(pageId)) {
+    errors.push(`PAGE_ID incorrecto ("${pageId}"): El ID de la Página de Facebook debe ser únicamente números.`);
+  }
+
+  // 2. Validar ACCESS_TOKEN
+  const token = process.env.ACCESS_TOKEN || currentConfig.accessToken;
+  if (!token) {
+    errors.push('Falta ACCESS_TOKEN: El Token de Acceso de Página (Meta) no está configurado.');
+  } else if (token.length < 30) {
+    errors.push('ACCESS_TOKEN sospechosamente corto: Asegúrate de usar un token de larga duración de Meta developers.');
+  }
+
+  // 3. Validar VERIFY_TOKEN
+  const verifyToken = process.env.VERIFY_TOKEN || currentConfig.verifyToken;
+  if (!verifyToken) {
+    errors.push('Falta VERIFY_TOKEN: El token de verificación de webhook no está configurado.');
+  } else if (verifyToken === 'instagram_auto_dm_verify_token_123') {
+    warnings.push('Seguridad: Estás usando el VERIFY_TOKEN por defecto. Cámbialo en tus variables de entorno.');
+  }
+
+  // 4. Validar ADMIN_PASSWORD
+  if (!ADMIN_PASSWORD) {
+    warnings.push('Seguridad: La variable ADMIN_PASSWORD no está configurada. El panel de administración es público y cualquiera puede acceder.');
+  } else if (ADMIN_PASSWORD.length < 6) {
+    warnings.push('Seguridad: La contraseña de administrador (ADMIN_PASSWORD) es demasiado corta (mínimo 6 caracteres).');
+  }
+
+  // Imprimir en consola con formato limpio
+  if (errors.length > 0) {
+    console.error('❌ CONFIGURACIÓN - ERRORES DETECTADOS:');
+    errors.forEach(err => console.error(`   • ${err}`));
+  }
+  if (warnings.length > 0) {
+    console.warn('⚠️ CONFIGURACIÓN - ADVERTENCIAS:');
+    warnings.forEach(warn => console.warn(`   • ${warn}`));
+  }
+  if (errors.length === 0 && warnings.length === 0) {
+    console.log('✅ Configuración inicial válida: Variables de entorno correctas.');
+  }
+  console.log('=========================================================\n');
+
+  // Registrar en el archivo de logs del sistema
+  errors.forEach(err => {
+    addLog('sistema', 'val_env_err', 'Configuración de Entorno', 'error', err);
+  });
+  warnings.forEach(warn => {
+    addLog('sistema', 'val_env_warn', 'Seguridad de Entorno', 'ignored', warn);
+  });
+}
+
 // Contraseña de Administrador (leída desde variables de entorno)
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
+
+// Ejecutar validación al arrancar
+validateEnvVariables();
+
 
 // Middleware para verificar la contraseña de administrador
 const checkAuth = (req, res, next) => {
@@ -150,6 +217,201 @@ app.get('/api/config', checkAuth, (req, res) => {
     replyMessage: currentConfig.replyMessage,
     hasToken: !!currentConfig.accessToken // Por seguridad no devolvemos el token completo al frontend
   });
+});
+
+// Probar conexión con Meta y validar variables
+app.get('/api/test-connection', checkAuth, async (req, res) => {
+  const diagnostics = {
+    pageId: { status: 'pending', message: 'No comprobado' },
+    accessToken: { status: 'pending', message: 'No comprobado' },
+    instagram: { status: 'pending', message: 'No comprobado' },
+    verifyToken: { status: 'pending', message: 'No comprobado' },
+    security: { status: 'pending', message: 'No comprobado' }
+  };
+
+  // 1. Validar Verify Token
+  const verifyToken = currentConfig.verifyToken;
+  if (!verifyToken) {
+    diagnostics.verifyToken = {
+      status: 'error',
+      message: 'El Verify Token está vacío. Debes configurarlo para verificar el Webhook.'
+    };
+  } else if (verifyToken === 'instagram_auto_dm_verify_token_123') {
+    diagnostics.verifyToken = {
+      status: 'warning',
+      message: 'Estás usando el Verify Token por defecto. Cámbialo en tus variables de entorno.',
+      value: verifyToken
+    };
+  } else {
+    diagnostics.verifyToken = {
+      status: 'success',
+      message: `Verify Token personalizado configurado correctamente.`,
+      value: verifyToken
+    };
+  }
+
+  // 2. Validar Contraseña de Admin
+  if (!ADMIN_PASSWORD) {
+    diagnostics.security = {
+      status: 'warning',
+      message: 'Dashboard público sin contraseña de acceso. Configura ADMIN_PASSWORD.'
+    };
+  } else if (ADMIN_PASSWORD.length < 6) {
+    diagnostics.security = {
+      status: 'warning',
+      message: 'La contraseña de administrador es demasiado corta (mínimo 6 caracteres).'
+    };
+  } else {
+    diagnostics.security = {
+      status: 'success',
+      message: 'Dashboard seguro protegido por contraseña de administrador.'
+    };
+  }
+
+  // 3. Validar Page ID y Token format
+  const pageId = currentConfig.pageId;
+  const token = currentConfig.accessToken;
+
+  if (!pageId) {
+    diagnostics.pageId = { status: 'error', message: 'El ID de la Página de Facebook está vacío.' };
+  } else if (!/^\d+$/.test(pageId)) {
+    diagnostics.pageId = { status: 'error', message: 'El ID de la Página de Facebook debe ser numérico.' };
+  } else {
+    diagnostics.pageId = { status: 'success', message: `ID de Página configurado: ${pageId}`, value: pageId };
+  }
+
+  if (!token) {
+    diagnostics.accessToken = { status: 'error', message: 'El Access Token está vacío.' };
+  } else if (token.length < 30) {
+    diagnostics.accessToken = { status: 'error', message: 'El Access Token es demasiado corto o inválido.' };
+  } else {
+    diagnostics.accessToken = { status: 'success', message: 'Token configurado con formato correcto.' };
+  }
+
+  // Si hay errores de formato previos, no llamamos a Meta API
+  if (diagnostics.pageId.status === 'error' || diagnostics.accessToken.status === 'error') {
+    diagnostics.instagram = { status: 'error', message: 'No se puede comprobar la cuenta de Instagram sin un ID y Token correctos.' };
+    
+    const reason = 'Diagnóstico fallido por errores en las variables de configuración básicas.';
+    addLog('sistema', 'test_conn_fail', 'Verificación', 'error', reason);
+    return res.json({
+      success: true,
+      valid: false,
+      diagnostics,
+      reason
+    });
+  }
+
+  // 4. Consultar Meta API para comprobar credenciales reales
+  try {
+    const url = `https://graph.facebook.com/v20.0/${pageId}`;
+    const response = await axios.get(url, {
+      params: {
+        fields: 'name,instagram_business_account{username,name}',
+        access_token: token
+      },
+      timeout: 10000 // 10 segundos timeout
+    });
+
+    const pageName = response.data.name;
+    const igAccount = response.data.instagram_business_account;
+
+    // Actualizar estados tras llamada exitosa
+    diagnostics.pageId = {
+      status: 'success',
+      message: `Página de Facebook encontrada: "${pageName}" (ID: ${pageId})`,
+      value: pageId
+    };
+
+    diagnostics.accessToken = {
+      status: 'success',
+      message: 'Access Token verificado y con permisos válidos.'
+    };
+
+    if (!igAccount) {
+      diagnostics.instagram = {
+        status: 'error',
+        message: 'No hay ninguna cuenta de Instagram Profesional conectada a esta Página. Vincula tu cuenta de IG Business en los ajustes de tu Página.'
+      };
+      
+      const reason = `Página de Facebook "${pageName}" conectada, pero sin cuenta de Instagram vinculada.`;
+      addLog('sistema', 'test_conn', 'Verificación', 'error', reason);
+      
+      return res.json({
+        success: true,
+        valid: false,
+        diagnostics,
+        pageName,
+        reason
+      });
+    }
+
+    // Instagram vinculado
+    diagnostics.instagram = {
+      status: 'success',
+      message: `Cuenta conectada: @${igAccount.username} (${igAccount.name || 'Instagram Business'})`,
+      username: igAccount.username,
+      name: igAccount.name
+    };
+
+    const details = `Conexión verificada con éxito. Página FB: "${pageName}" | Instagram: @${igAccount.username}`;
+    addLog('sistema', 'test_conn', 'Verificación', 'success', details);
+
+    res.json({
+      success: true,
+      valid: true,
+      diagnostics,
+      pageName,
+      instagramUsername: igAccount.username,
+      instagramName: igAccount.name,
+      details
+    });
+
+  } catch (error) {
+    let apiErrorMsg = error.message;
+    let errorCode = null;
+
+    if (error.response && error.response.data && error.response.data.error) {
+      apiErrorMsg = error.response.data.error.message;
+      errorCode = error.response.data.error.code;
+    }
+
+    // Traducir códigos de error comunes de Meta
+    let suggestion = apiErrorMsg;
+    if (errorCode === 190) {
+      diagnostics.accessToken = {
+        status: 'error',
+        message: 'El Access Token es inválido, ha expirado o ha sido revocado. Renuévalo en Meta for Developers.'
+      };
+      suggestion = 'Access Token de Meta inválido o expirado (Error 190).';
+    } else if (errorCode === 100 || errorCode === 803) {
+      diagnostics.pageId = {
+        status: 'error',
+        message: 'El ID de la Página de Facebook es incorrecto o la cuenta no tiene permisos para acceder a ella.'
+      };
+      suggestion = 'ID de Página de Facebook incorrecto o inaccesible (Error 100/803).';
+    } else {
+      diagnostics.accessToken = {
+        status: 'error',
+        message: `Error de API de Meta (${errorCode || 'desconocido'}): ${apiErrorMsg}`
+      };
+    }
+
+    diagnostics.instagram = {
+      status: 'error',
+      message: 'Comprobación de Instagram omitida por error en la conexión de la API.'
+    };
+
+    const reason = `Error de diagnóstico de conexión: ${suggestion}`;
+    addLog('sistema', 'test_conn_fail', 'Verificación', 'error', reason);
+
+    res.json({
+      success: true,
+      valid: false,
+      diagnostics,
+      reason
+    });
+  }
 });
 
 // Guardar configuración
