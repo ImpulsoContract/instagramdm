@@ -601,11 +601,17 @@ async function processWebhookPayload(payload, isMock = false) {
           const log = addLog(username, commentId, commentText, 'success', `Mensaje privado enviado con éxito. ID: ${response.data.message_id || 'N/A'}`);
           results.push({ commentId, status: 'success', log });
         } catch (error) {
-          const apiErrorMsg = error.response && error.response.data && error.response.data.error 
-            ? error.response.data.error.message 
-            : error.message;
-          console.error(`[Error Meta API] No se pudo enviar el DM a @${username}:`, apiErrorMsg);
-          const log = addLog(username, commentId, commentText, 'error', `Error de API de Meta: ${apiErrorMsg}`);
+          let apiErrorMsg = error.message;
+          let fullDetails = '';
+          if (error.response && error.response.data && error.response.data.error) {
+            const metaError = error.response.data.error;
+            apiErrorMsg = metaError.message;
+            fullDetails = ` (Código: ${metaError.code}, Subcódigo: ${metaError.error_subcode || 'N/A'}, TraceID: ${metaError.fbtrace_id || 'N/A'})`;
+            console.error(`[Error Meta API Detalles]`, JSON.stringify(metaError, null, 2));
+          } else {
+            console.error(`[Error Meta API] No se pudo enviar el DM a @${username}:`, error.message);
+          }
+          const log = addLog(username, commentId, commentText, 'error', `Error de API de Meta: ${apiErrorMsg}${fullDetails}`);
           results.push({ commentId, status: 'error', log });
         }
       }
