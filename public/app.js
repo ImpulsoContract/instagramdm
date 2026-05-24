@@ -380,16 +380,33 @@ document.addEventListener('DOMContentLoaded', () => {
               <span class="log-time">${timeStr}</span>
             </div>
             <div class="log-text-msg">"${log.commentText}"</div>
-            <div class="log-details">
-              ${statusIcon}
-              <span class="log-status-badge">${statusLabel}</span>
-              <span>•</span>
-              <span class="log-details-text">${log.details}</span>
+            <div class="log-details" style="display: flex; justify-content: space-between; align-items: center; width: 100%; flex-wrap: wrap; gap: 0.5rem;">
+              <div style="display: flex; align-items: center; gap: 0.3rem;">
+                ${statusIcon}
+                <span class="log-status-badge">${statusLabel}</span>
+                <span>•</span>
+                <span class="log-details-text">${log.details}</span>
+              </div>
+              ${log.commentId ? `<span class="log-id-badge copy-comment-id" data-id="${log.commentId}" style="font-size: 0.75rem; color: var(--text-muted-dark); background: rgba(255, 255, 255, 0.05); padding: 0.1rem 0.4rem; border-radius: 4px; font-family: monospace; cursor: pointer; user-select: all;" title="Haga clic para copiar ID">ID: ${log.commentId}</span>` : ''}
             </div>
           </div>
         </div>
       `;
     }).join('');
+
+    // Bind event listeners to copy comment IDs
+    logsList.querySelectorAll('.copy-comment-id').forEach(badge => {
+      badge.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const commentId = badge.getAttribute('data-id');
+        navigator.clipboard.writeText(commentId).then(() => {
+          showToast('ID de comentario copiado al portapapeles', 'success');
+        }).catch(err => {
+          console.error('Error al copiar ID:', err);
+          showToast('No se pudo copiar el ID', 'error');
+        });
+      });
+    });
   }
 
   // Filter tabs click handler
